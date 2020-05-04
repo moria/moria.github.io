@@ -15,10 +15,10 @@ recent_num: 20
 
 # Social account
 twitter: knuthfan
-#weibo: 
-github: moria 
-#instagram: 
-#linkedin: 
+#weibo:
+github: moria
+#instagram:
+#linkedin:
 
 # avatar and Favicon
 avatar: https://avatars0.githubusercontent.com/u/1073005?s=460&v=4
@@ -26,7 +26,7 @@ favicon: https://avatars0.githubusercontent.com/u/1073005?s=460&v=4
 
 # disqus config
 disqus:
-  shortname: knuthfan
+  shortname: yiguoluandun
 
 # google analytics config
 ga:
