@@ -49,7 +49,6 @@ $(function() {
 
     // discus comment.
     {% if site.disqus.shortname %}
-    /*
       var ds_loaded = false;
       window.disqus_shortname = "{{ site.disqus.shortname }}";
       main.scroll(function(){
@@ -65,7 +64,6 @@ $(function() {
           ds_loaded = true;
         }
       });
-      */
     {% endif %}
     // your scripts
   };
