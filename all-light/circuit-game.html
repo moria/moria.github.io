@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>点亮灯泡</title>
+<style>
+  :root {
+    --bg-dark: #1a1a2e;
+    --bg-panel: #16213e;
+    --bg-cell: #0f3460;
+    --bg-cell-hover: #1a4a7a;
+    --wire-off: #5a6a7a;
+    --wire-on: #f5c542;
+    --glow-color: #f5c542;
+    --bulb-off: #555;
+    --bulb-on: #f5c542;
+    --battery-color: #4caf50;
+    --text-primary: #e0e0e0;
+    --text-secondary: #a0a0a0;
+    --accent: #e94560;
+    --btn-bg: #0f3460;
+    --btn-hover: #1a4a7a;
+    --success: #4caf50;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  /* ========== 难度选择界面 ========== */
+  #difficulty-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    gap: 16px;
+  }
+
+  #difficulty-screen h1 {
+    font-size: 2em;
+    color: var(--glow-color);
+    text-shadow: 0 0 20px rgba(245, 197, 66, 0.5);
+    margin-bottom: 10px;
+  }
+
+  #difficulty-screen p.subtitle {
+    color: var(--text-secondary);
+    font-size: 1em;
+    margin-bottom: 16px;
+  }
+
+  .difficulty-btn {
+    width: 280px;
+    padding: 18px 28px;
+    font-size: 1.2em;
+    font-weight: bold;
+    border: 2px solid var(--wire-off);
+    border-radius: 14px;
+    background: var(--bg-panel);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .difficulty-btn:hover, .difficulty-btn:active {
+    border-color: var(--glow-color);
+    background: var(--bg-cell);
+    transform: scale(1.03);
+  }
+
+  .difficulty-btn .grid-info {
+    font-size: 0.75em;
+    color: var(--text-secondary);
+    font-weight: normal;
+  }
+
+  /* ========== 游戏界面 ========== */
+  #game-screen {
+    display: none;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* 顶部信息栏 */
+  #top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    background: var(--bg-panel);
+    min-height: 56px;
+    flex-shrink: 0;
+  }
+
+  #top-bar .info-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.05em;
+  }
+
+  #top-bar .info-item .icon {
+    font-size: 1.3em;
+  }
+
+  #top-bar .timer {
+    font-variant-numeric: tabular-nums;
+    font-size: 1.25em;
+    font-weight: bold;
+  }
+
+  #top-bar .best-record {
+    color: var(--glow-color);
+    font-size: 0.95em;
+  }
+
+  /* 按钮栏 */
+  #control-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 10px 16px;
+    background: var(--bg-panel);
+    border-top: 1px solid rgba(255,255,255,0.05);
+    flex-shrink: 0;
+  }
+
+  .ctrl-btn {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    border: 2px solid var(--wire-off);
+    background: var(--bg-cell);
+    color: var(--text-primary);
+    font-size: 1.4em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .ctrl-btn:hover, .ctrl-btn:active {
+    background: var(--btn-hover);
+    border-color: var(--glow-color);
+  }
+
+  .ctrl-btn.active {
+    border-color: var(--glow-color);
+    color: var(--glow-color);
+  }
+
+  /* 游戏板容器 */
+  #board-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 8px;
+  }
+
+  #board {
+    display: grid;
+    gap: 2px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 8px;
+    padding: 4px;
+    box-shadow: 0 0 30px rgba(0,0,0,0.5);
+  }
+
+  /* 单元格 */
+  .cell {
+    width: var(--cell-size);
+    height: var(--cell-size);
+    background: var(--bg-cell);
+    border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cell:hover {
+    background: var(--bg-cell-hover);
+  }
+
+  .cell canvas {
+    width: 100%;
+    height: 100%;
+    transition: transform 0.2s ease-out;
+  }
+
+  .cell.lit {
+    background: rgba(245, 197, 66, 0.08);
+  }
+
+  .cell.lit canvas {
+    filter: drop-shadow(0 0 4px rgba(245, 197, 66, 0.6));
+  }
+
+  /* 胜利提示条 - 显示在页面顶部，不遮挡网格 */
+  #win-bar {
+    display: none;
+    background: rgba(245, 197, 66, 0.12);
+    border-bottom: 2px solid var(--glow-color);
+    padding: 10px 16px;
+    text-align: center;
+    flex-shrink: 0;
+    animation: winSlideIn 0.3s ease-out;
+  }
+
+  @keyframes winSlideIn {
+    from { transform: translateY(-100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  #win-bar h2 {
+    font-size: 1.3em;
+    color: var(--glow-color);
+    margin-bottom: 2px;
+  }
+
+  #win-bar .win-time {
+    font-size: 1em;
+    margin: 4px 0;
+  }
+
+  #win-bar .new-record {
+    color: var(--accent);
+    font-weight: bold;
+    font-size: 0.95em;
+  }
+
+  /* 胜利后显示在底部的返回按钮 */
+  #win-return-bar {
+    display: none;
+    padding: 12px 16px;
+    text-align: center;
+    flex-shrink: 0;
+    background: var(--bg-panel);
+  }
+
+  #btn-win-back {
+    width: auto;
+    padding: 12px 48px;
+    font-size: 1.1em;
+    font-weight: bold;
+    border: 2px solid var(--glow-color);
+    border-radius: 12px;
+    background: var(--glow-color);
+    color: #1a1a2e;
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+
+  #btn-win-back:hover {
+    transform: scale(1.05);
+  }
+
+  /* 暂停遮罩 */
+  #pause-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 90;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  #pause-overlay h2 {
+    font-size: 2em;
+    color: var(--text-primary);
+  }
+
+  #pause-overlay button {
+    padding: 12px 32px;
+    font-size: 1em;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+
+  #pause-overlay .resume-btn {
+    background: var(--glow-color);
+    color: #1a1a2e;
+  }
+
+  #pause-overlay .quit-btn {
+    background: var(--bg-cell);
+    color: var(--text-primary);
+    border: 1px solid var(--wire-off);
+  }
+
+  /* 灯泡指示器 */
+  .bulb-indicator {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  /* 响应式 */
+  @media (max-width: 480px) {
+    #difficulty-screen h1 { font-size: 1.7em; }
+    #difficulty-screen p.subtitle { font-size: 1.05em; }
+    .difficulty-btn { width: 250px; padding: 14px 22px; font-size: 1.1em; }
+    .difficulty-btn .grid-info { font-size: 0.8em; }
+    #top-bar { padding: 8px 14px; min-height: 52px; }
+    #top-bar .info-item { font-size: 0.95em; gap: 6px; }
+    #top-bar .timer { font-size: 1.1em; }
+    #control-bar { gap: 12px; padding: 8px 12px; }
+    .ctrl-btn { width: 48px; height: 48px; font-size: 1.25em; border-radius: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ========== 难度选择界面 ========== -->
+<div id="difficulty-screen">
+  <h1>点亮灯泡</h1>
+  <p class="subtitle">旋转方块，连接所有灯泡到电源</p>
+  <button class="difficulty-btn" onclick="startGame('beginner')">
+    <span>入门</span>
+    <span class="grid-info">3 × 5</span>
+  </button>
+  <button class="difficulty-btn" onclick="startGame('easy')">
+    <span>简单</span>
+    <span class="grid-info">5 × 8</span>
+  </button>
+  <button class="difficulty-btn" onclick="startGame('medium')">
+    <span>中等</span>
+    <span class="grid-info">7 × 11</span>
+  </button>
+  <button class="difficulty-btn" onclick="startGame('hard')">
+    <span>困难</span>
+    <span class="grid-info">9 × 14</span>
+  </button>
+  <button class="difficulty-btn" onclick="location.href='src/hex/index.html'" style="border-color:var(--accent);">
+    <span>🔥 地狱</span>
+    <span class="grid-info">5 × 25 六边形</span>
+  </button>
+</div>
+
+<!-- ========== 游戏界面 ========== -->
+<div id="game-screen">
+  <div id="top-bar">
+    <div class="info-item">
+      <span class="icon">⏱</span>
+      <span class="timer" id="timer-display">00:00</span>
+    </div>
+    <div class="info-item bulb-indicator" id="bulb-indicator"></div>
+    <div class="info-item">
+      <span class="icon">🏆</span>
+      <span class="best-record" id="best-display">--:--</span>
+    </div>
+  </div>
+
+  <!-- 胜利提示 - 页面顶部，不遮挡网格 -->
+  <div id="win-bar">
+    <h2>恭喜通关！</h2>
+    <p class="win-time" id="win-time">用时：00:00</p>
+    <p class="new-record" id="win-record" style="display:none">新纪录！</p>
+  </div>
+
+  <div id="board-container">
+    <div id="board"></div>
+  </div>
+
+  <div id="control-bar">
+    <button class="ctrl-btn" id="btn-pause" onclick="togglePause()" title="暂停">⏸</button>
+    <button class="ctrl-btn" id="btn-hint" onclick="startSolve()" title="提示">💡</button>
+    <button class="ctrl-btn" id="btn-reset" onclick="resetPuzzle()" title="重置">↺</button>
+    <button class="ctrl-btn" id="btn-sound" onclick="toggleSound()" title="音效">🔊</button>
+    <button class="ctrl-btn" id="btn-back" onclick="backToMenu()" title="返回">✕</button>
+  </div>
+
+  <!-- 胜利后显示在底部的返回按钮 -->
+  <div id="win-return-bar">
+    <button id="btn-win-back" onclick="backToMenu()">返回菜单</button>
+  </div>
+</div>
+
+<!-- ========== 暂停遮罩 ========== -->
+<div id="pause-overlay">
+  <h2>已暂停</h2>
+  <button class="resume-btn" onclick="togglePause()">继续游戏</button>
+  <button class="quit-btn" onclick="backToMenu()">返回菜单</button>
+</div>
+
+<script>
+// ======================== 游戏核心逻辑 ========================
+
+// 方向常量: 0=上, 1=右, 2=下, 3=左
+const DIR_UP = 0, DIR_RIGHT = 1, DIR_DOWN = 2, DIR_LEFT = 3;
+const DX = [0, 1, 0, -1];
+const DY = [-1, 0, 1, 0];
+const OPPOSITE = [2, 3, 0, 1];
+
+// 方块类型
+const T = {
+  STRAIGHT: 'STRAIGHT',   // 直线: 2个对向开口
+  CURVE:    'CURVE',       // 弯道: 2个相邻开口
+  TEE:      'TEE',         // T型: 3个开口
+  CROSS:    'CROSS',       // 十字: 4个开口
+  BULB:     'BULB',        // 灯泡: 单端接口
+  BATTERY:  'BATTERY',     // 电池: 单端输出
+};
+
+// 每种类型的基础开口方向（rotation=0时）
+const BASE_CONNS = {
+  [T.STRAIGHT]: [DIR_UP, DIR_DOWN],     // 上下
+  [T.CURVE]:    [DIR_UP, DIR_RIGHT],    // 上右
+  [T.TEE]:      [DIR_UP, DIR_RIGHT, DIR_DOWN], // 上右下
+  [T.CROSS]:    [DIR_UP, DIR_RIGHT, DIR_DOWN, DIR_LEFT],
+  [T.BULB]:     [DIR_DOWN],             // 输入口在下
+  [T.BATTERY]:  [DIR_UP],               // 输出口在上
+};
+
+// 难度配置
+const DIFFICULTY = {
+  beginner: { cols: 3,  rows: 5  },
+  easy:     { cols: 5,  rows: 8  },
+  medium:   { cols: 7,  rows: 11 },
+  hard:     { cols: 9,  rows: 14 },
+};
+
+// 游戏状态
+let game = {
+  cols: 0, rows: 0,
+  grid: [],
+  solution: [],    // 保存全连通状态下每个方块的旋转（用于提示/还原）
+  difficulty: '',
+  timer: 0,
+  timerInterval: null,
+  paused: false,
+  soundOn: true,
+  totalBulbs: 0,
+  litBulbs: 0,
+  cellSize: 50,
+  won: false,
+  solving: false,  // 正在自动还原中
+  animating: false, // 有方块正在旋转动画中
+};
+
+// ======================== 音效系统 ========================
+let audioCtx = null;
+
+function ensureAudioCtx() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioCtx;
+}
+
+function playSound(type) {
+  if (!game.soundOn) return;
+  try {
+    const ctx = ensureAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    switch (type) {
+      case 'rotate':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.1);
+        break;
+      case 'light':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.15);
+        break;
+      case 'win': {
+        const notes = [523, 659, 784, 1047];
+        notes.forEach((freq, i) => {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.connect(g);
+          g.connect(ctx.destination);
+          o.type = 'sine';
+          o.frequency.value = freq;
+          g.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.15);
+          g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.15 + 0.3);
+          o.start(ctx.currentTime + i * 0.15);
+          o.stop(ctx.currentTime + i * 0.15 + 0.3);
+        });
+        break;
+      }
+      case 'click':
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(400, ctx.currentTime);
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.05);
+        break;
+    }
+  } catch (e) {}
+}
+
+// ======================== 辅助函数 ========================
+
+function getConns(type, rotation) {
+  return new Set(BASE_CONNS[type].map(d => (d + rotation) % 4));
+}
+
+function idx(x, y, cols) {
+  return y * cols + x;
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// ======================== 关卡生成 ========================
+// 算法：
+// 1. 放置电池在底部中间
+// 2. 使用DFS生成一棵覆盖所有格子的生成树（从电池出发）
+// 3. 叶子节点（无子节点）= 灯泡，内部节点 = 电线
+// 4. 根据树结构确定每个格子的电线类型和正确旋转
+// 5. 随机打乱所有非电池、非十字的旋转方向
+
+function generatePuzzle(cols, rows) {
+  const grid = [];
+  for (let y = 0; y < rows; y++) {
+    grid[y] = [];
+    for (let x = 0; x < cols; x++) {
+      grid[y][x] = null;
+    }
+  }
+
+  // 1. 放置电池在底部中间
+  const batX = Math.floor(cols / 2);
+  const batY = rows - 1;
+  grid[batY][batX] = { type: T.BATTERY, rotation: 0, lit: false };
+
+  // 2. DFS生成覆盖所有格子的生成树
+  //    使用"随机优先方向"的DFS：每次从栈顶取一个节点，尝试沿随机方向深入
+  //    这样产生深而窄的树，更多使用直线和弯道，游戏更有趣
+  const visited = Array.from({ length: rows }, () => new Uint8Array(cols));
+  // tree[y][x] = { parentDir: 指向父节点的方向, children: [子节点方向列表] }
+  const tree = Array.from({ length: rows }, () =>
+    Array.from({ length: cols }, () => ({ parentDir: -1, children: [] }))
+  );
+
+  visited[batY][batX] = 1;
+
+  // 电池先连接上方格子（电池只能向上输出）
+  if (batY > 0) {
+    visited[batY - 1][batX] = 1;
+    tree[batY][batX].children.push(DIR_UP);
+    tree[batY - 1][batX].parentDir = DIR_DOWN;
+  }
+
+  // 标准随机DFS：每次从栈顶取一个节点，沿一个随机方向深入
+  // 如果无路可走则回溯
+  const dfsStack = [{ x: batX, y: batY - 1 }]; // 从电池上方格子开始DFS
+
+  while (dfsStack.length > 0) {
+    const top = dfsStack[dfsStack.length - 1];
+
+    // 获取未访问的邻居
+    const neighbors = [];
+    for (let d = 0; d < 4; d++) {
+      const nx = top.x + DX[d], ny = top.y + DY[d];
+      if (nx >= 0 && nx < cols && ny >= 0 && ny < rows && !visited[ny][nx]) {
+        neighbors.push({ d, nx, ny });
+      }
+    }
+
+    if (neighbors.length === 0) {
+      dfsStack.pop(); // 回溯
+      continue;
+    }
+
+    // 随机选一个未访问的邻居
+    const { d, nx, ny } = neighbors[Math.floor(Math.random() * neighbors.length)];
+    visited[ny][nx] = 1;
+    tree[top.y][top.x].children.push(d);
+    tree[ny][nx].parentDir = OPPOSITE[d];
+    dfsStack.push({ x: nx, y: ny });
+  }
+
+  // 3. 根据生成树确定每个格子的类型和旋转（这就是全连通状态）
+  const solution = [];
+  for (let y = 0; y < rows; y++) {
+    solution[y] = [];
+    for (let x = 0; x < cols; x++) {
+      if (x === batX && y === batY) {
+        solution[y][x] = 0;
+        continue;
+      }
+
+      const node = tree[y][x];
+      const allDirs = [...node.children];
+      if (node.parentDir >= 0) allDirs.push(node.parentDir);
+
+      const uniqueDirs = [...new Set(allDirs)];
+      if (uniqueDirs.length === 0) {
+        uniqueDirs.push(DIR_UP);
+      }
+
+      if (node.children.length === 0) {
+        const inputDir = node.parentDir >= 0 ? node.parentDir : uniqueDirs[0];
+        // 灯泡基础开口是 DIR_DOWN，要让开口朝向 inputDir，需要旋转 (inputDir - DIR_DOWN + 4) % 4
+        const rot = (inputDir - DIR_DOWN + 4) % 4;
+        grid[y][x] = { type: T.BULB, rotation: rot, lit: false };
+        solution[y][x] = rot;
+      } else {
+        const type = wireTypeForDirs(uniqueDirs);
+        const rot = rotationForDirs(type, uniqueDirs);
+        grid[y][x] = { type, rotation: rot, lit: false };
+        solution[y][x] = rot;
+      }
+    }
+  }
+
+  // 4. 随机打乱所有非电池、非十字方块的旋转
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const cell = grid[y][x];
+      if (!cell) continue;
+      if (cell.type === T.BATTERY || cell.type === T.CROSS) continue;
+      cell.rotation = (cell.rotation + 1 + Math.floor(Math.random() * 3)) % 4;
+    }
+  }
+
+  // 5. 确保不是已经解好的状态
+  const { totalBulbs, litBulbs } = countBulbs(grid, cols, rows);
+  if (litBulbs === totalBulbs && totalBulbs > 0) {
+    for (let i = 0; i < 10; i++) {
+      const rx = Math.floor(Math.random() * cols);
+      const ry = Math.floor(Math.random() * rows);
+      const cell = grid[ry][rx];
+      if (cell && cell.type !== T.BATTERY && cell.type !== T.CROSS) {
+        cell.rotation = (cell.rotation + 1 + Math.floor(Math.random() * 2)) % 4;
+      }
+    }
+  }
+
+  return { grid, solution, batX, batY };
+}
+
+function wireTypeForDirs(dirs) {
+  const sorted = [...dirs].sort((a, b) => a - b);
+  const n = sorted.length;
+
+  if (n >= 4) return T.CROSS;
+  if (n === 3) return T.TEE;
+  if (n === 2) {
+    const [a, b] = sorted;
+    // 对向 = 直线，相邻 = 弯道
+    return ((b - a + 4) % 4 === 2) ? T.STRAIGHT : T.CURVE;
+  }
+  return T.STRAIGHT; // n === 1 用直线代替
+}
+
+function rotationForDirs(type, dirs) {
+  const sorted = [...dirs].sort((a, b) => a - b);
+  const base = BASE_CONNS[type];
+
+  if (type === T.CROSS) return 0;
+
+  if (type === T.TEE) {
+    // 基础[0,1,2]，找缺失方向
+    const missing = [0, 1, 2, 3].find(d => !sorted.includes(d));
+    return (missing + 1) % 4;
+  }
+
+  if (type === T.STRAIGHT) {
+    const [a, b] = sorted;
+    if ((b - a + 4) % 4 === 2) {
+      return a % 2 === 0 ? 0 : 1;
+    }
+    return 0;
+  }
+
+  if (type === T.CURVE) {
+    const [a, b] = sorted;
+    // 基础[0,1] rotation=0
+    if (a === 0 && b === 1) return 0;
+    if (a === 1 && b === 2) return 1;
+    if (a === 2 && b === 3) return 2;
+    if (a === 0 && b === 3) return 3;
+    return 0;
+  }
+
+  return 0;
+}
+
+// ======================== 电路连通性检测 ========================
+
+function updateCircuitState() {
+  const { grid, cols, rows } = game;
+
+  // 清除所有点亮
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      grid[y][x].lit = false;
+    }
+  }
+
+  // 找到电池
+  let batX = -1, batY = -1;
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      if (grid[y][x].type === T.BATTERY) { batX = x; batY = y; }
+    }
+  }
+  if (batX < 0) return;
+
+  // BFS从电池出发
+  grid[batY][batX].lit = true;
+  const queue = [{ x: batX, y: batY }];
+
+  while (queue.length > 0) {
+    const { x, y } = queue.shift();
+    const cell = grid[y][x];
+    const cellConns = getConns(cell.type, cell.rotation);
+
+    for (const dir of cellConns) {
+      const nx = x + DX[dir];
+      const ny = y + DY[dir];
+      if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
+      const neighbor = grid[ny][nx];
+      if (neighbor.lit) continue;
+
+      const neighborConns = getConns(neighbor.type, neighbor.rotation);
+      if (neighborConns.has(OPPOSITE[dir])) {
+        neighbor.lit = true;
+        queue.push({ x: nx, y: ny });
+      }
+    }
+  }
+
+  const { totalBulbs, litBulbs } = countBulbs(grid, cols, rows);
+  const prevLit = game.litBulbs;
+  game.totalBulbs = totalBulbs;
+  game.litBulbs = litBulbs;
+
+  if (litBulbs > prevLit) playSound('light');
+
+  if (litBulbs === totalBulbs && totalBulbs > 0 && !game.won) {
+    game.won = true;
+    onWin();
+  }
+}
+
+function countBulbs(grid, cols, rows) {
+  let total = 0, lit = 0;
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      if (grid[y][x].type === T.BULB) {
+        total++;
+        if (grid[y][x].lit) lit++;
+      }
+    }
+  }
+  return { totalBulbs: total, litBulbs: lit };
+}
+
+// ======================== 渲染 ========================
+
+function calculateCellSize() {
+  const container = document.getElementById('board-container');
+  const { cols, rows } = game;
+  const maxW = container.clientWidth - 24;
+  const maxH = container.clientHeight - 24;
+  const gapSize = 2;
+  const padding = 8;
+
+  const availW = maxW - padding * 2 - gapSize * (cols - 1);
+  const availH = maxH - padding * 2 - gapSize * (rows - 1);
+
+  game.cellSize = Math.max(28, Math.min(Math.floor(availW / cols), Math.floor(availH / rows), 72));
+}
+
+function renderBoard() {
+  const board = document.getElementById('board');
+  const { cols, rows, cellSize } = game;
+
+  board.style.gridTemplateColumns = `repeat(${cols}, ${cellSize}px)`;
+  board.style.gridTemplateRows = `repeat(${rows}, ${cellSize}px)`;
+  board.innerHTML = '';
+
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const cell = game.grid[y][x];
+      const div = document.createElement('div');
+      div.className = 'cell' + (cell.lit ? ' lit' : '');
+      div.dataset.x = x;
+      div.dataset.y = y;
+
+      const canvas = document.createElement('canvas');
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = cellSize * dpr;
+      canvas.height = cellSize * dpr;
+      canvas.style.width = cellSize + 'px';
+      canvas.style.height = cellSize + 'px';
+      // Track visual rotation for animation
+      canvas._visualRotation = cell.rotation;
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+
+      drawTile(ctx, cell, cellSize);
+
+      div.appendChild(canvas);
+      div.addEventListener('click', onCellClick);
+      div.addEventListener('touchstart', onCellTouch, { passive: false });
+      board.appendChild(div);
+    }
+  }
+}
+
+function updateCellDisplay(x, y) {
+  const board = document.getElementById('board');
+  const i = idx(x, y, game.cols);
+  const div = board.children[i];
+  if (!div) return;
+
+  const cell = game.grid[y][x];
+  const cellSize = game.cellSize;
+
+  div.className = 'cell' + (cell.lit ? ' lit' : '');
+
+  const canvas = div.querySelector('canvas');
+  const dpr = window.devicePixelRatio || 1;
+  const prevRot = canvas._visualRotation ?? cell.rotation;
+  const newRot = cell.rotation;
+
+  // Animate rotation change with CSS transform
+  if (prevRot !== newRot && !canvas._animating) {
+    const angleDelta = ((newRot - prevRot + 4) % 4) * 90;
+    canvas._animating = true;
+    animatingCount++;
+    game.animating = true;
+    canvas.style.transform = `rotate(${angleDelta}deg)`;
+
+    // After animation, redraw at new rotation and reset transform
+    setTimeout(() => {
+      canvas.style.transition = 'none';
+      canvas._visualRotation = newRot;
+      canvas.width = cellSize * dpr;
+      canvas.height = cellSize * dpr;
+      canvas.style.width = cellSize + 'px';
+      canvas.style.height = cellSize + 'px';
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      drawTile(ctx, cell, cellSize);
+      canvas.style.transform = '';
+
+      // Restore transition for next animation
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          canvas.style.transition = 'transform 0.2s ease-out';
+          canvas._animating = false;
+          animatingCount--;
+          if (animatingCount <= 0) {
+            animatingCount = 0;
+            game.animating = false;
+          }
+        });
+      });
+    }, 210);
+  } else if (!canvas._animating) {
+    // No rotation change, just update lit state
+    canvas._visualRotation = newRot;
+    canvas.width = cellSize * dpr;
+    canvas.height = cellSize * dpr;
+    canvas.style.width = cellSize + 'px';
+    canvas.style.height = cellSize + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    drawTile(ctx, cell, cellSize);
+  }
+}
+
+let animatingCount = 0;
+
+// ======================== 绘制 ========================
+
+function drawTile(ctx, cell, size) {
+  const lit = cell.lit;
+  const wireColor = lit ? '#f5c542' : '#5a6a7a';
+  const wireWidth = Math.max(3, size * 0.12);
+  const cx = size / 2;
+  const cy = size / 2;
+  const halfLen = size / 2 - size * 0.08;
+
+  const conns = getConns(cell.type, cell.rotation);
+
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  if (cell.type === T.BATTERY) {
+    drawBattery(ctx, cx, cy, size, lit, wireColor, wireWidth, halfLen, cell.rotation);
+  } else if (cell.type === T.BULB) {
+    drawBulb(ctx, cx, cy, size, lit, conns, wireColor, wireWidth, halfLen, cell.rotation);
+  } else {
+    drawWire(ctx, cx, cy, size, lit, conns, wireColor, wireWidth, halfLen);
+  }
+}
+
+function drawWire(ctx, cx, cy, size, lit, conns, wireColor, wireWidth, halfLen) {
+  ctx.strokeStyle = wireColor;
+  ctx.lineWidth = wireWidth;
+
+  if (lit) {
+    ctx.shadowColor = '#f5c542';
+    ctx.shadowBlur = 10;
+  } else {
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+  }
+
+  // 绘制线
+  for (const dir of conns) {
+    let ex, ey;
+    switch (dir) {
+      case DIR_UP:    ex = cx; ey = cy - halfLen; break;
+      case DIR_RIGHT: ex = cx + halfLen; ey = cy; break;
+      case DIR_DOWN:  ex = cx; ey = cy + halfLen; break;
+      case DIR_LEFT:  ex = cx - halfLen; ey = cy; break;
+    }
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+  }
+
+  ctx.shadowBlur = 0;
+}
+
+function drawBulb(ctx, cx, cy, size, lit, conns, wireColor, wireWidth, halfLen, rotation) {
+  const bulbRadius = size * 0.22;
+
+  // 画输入线
+  const inputDir = [...conns][0];
+  let ex, ey;
+  switch (inputDir) {
+    case DIR_UP:    ex = cx; ey = cy - halfLen; break;
+    case DIR_RIGHT: ex = cx + halfLen; ey = cy; break;
+    case DIR_DOWN:  ex = cx; ey = cy + halfLen; break;
+    case DIR_LEFT:  ex = cx - halfLen; ey = cy; break;
+  }
+
+  ctx.strokeStyle = wireColor;
+  ctx.lineWidth = wireWidth;
+  ctx.shadowColor = lit ? '#f5c542' : 'transparent';
+  ctx.shadowBlur = lit ? 8 : 0;
+
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(ex, ey);
+  ctx.stroke();
+
+  // 灯泡外壳
+  ctx.shadowBlur = lit ? 18 : 0;
+  ctx.shadowColor = lit ? '#f5c542' : 'transparent';
+
+  ctx.fillStyle = lit ? '#f5c542' : '#555';
+  ctx.strokeStyle = lit ? '#d4a017' : '#444';
+  ctx.lineWidth = 2;
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, bulbRadius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // 灯丝和灯座跟随旋转
+  const bulbRot = rotation * Math.PI / 2;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(bulbRot);
+  ctx.translate(-cx, -cy);
+
+  // 灯丝
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = lit ? '#fff8dc' : '#666';
+  ctx.lineWidth = 1.5;
+
+  const fH = bulbRadius * 0.5;
+  const fW = bulbRadius * 0.4;
+  ctx.beginPath();
+  ctx.moveTo(cx - fW, cy + bulbRadius * 0.1);
+  ctx.lineTo(cx - fW / 2, cy - fH * 0.5);
+  ctx.lineTo(cx, cy + bulbRadius * 0.1);
+  ctx.lineTo(cx + fW / 2, cy - fH * 0.5);
+  ctx.lineTo(cx + fW, cy + bulbRadius * 0.1);
+  ctx.stroke();
+
+  // 灯座条纹
+  const baseW = bulbRadius * 0.6;
+  const baseTop = cy + bulbRadius * 0.5;
+  ctx.strokeStyle = lit ? '#c4a020' : '#444';
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < 3; i++) {
+    const by = baseTop + i * 4;
+    ctx.beginPath();
+    ctx.moveTo(cx - baseW, by);
+    ctx.lineTo(cx + baseW, by);
+    ctx.stroke();
+  }
+
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
+function drawBattery(ctx, cx, cy, size, lit, wireColor, wireWidth, halfLen, rotation) {
+  const batRot = rotation * Math.PI / 2;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(batRot);
+  ctx.translate(-cx, -cy);
+
+  const batW = size * 0.38;
+  const batH = size * 0.6;
+  const capH = size * 0.08;
+
+  // 输出线（向上）- 使用与其他电线点亮时一致的颜色
+  const outColor = lit ? '#f5c542' : '#5a6a7a';
+  ctx.strokeStyle = outColor;
+  ctx.lineWidth = wireWidth;
+  ctx.shadowColor = lit ? '#f5c542' : 'transparent';
+  ctx.shadowBlur = lit ? 8 : 0;
+
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx, cy - halfLen);
+  ctx.stroke();
+
+  // 电池主体 - 灰绿色
+  ctx.shadowBlur = lit ? 12 : 0;
+  ctx.shadowColor = lit ? '#f5c542' : 'transparent';
+
+  const bodyColor = lit ? '#7a9e6e' : '#6a7e6a';
+  const bodyBorder = lit ? '#5d8a52' : '#556655';
+  ctx.fillStyle = bodyColor;
+  ctx.strokeStyle = bodyBorder;
+  ctx.lineWidth = 2;
+
+  const rx = cx - batW / 2;
+  const ry = cy - batH / 2 + capH;
+  const cornerR = 4;
+  ctx.beginPath();
+  ctx.roundRect(rx, ry, batW, batH, cornerR);
+  ctx.fill();
+  ctx.stroke();
+
+  // 正极突起（顶部银灰色）
+  const capW = batW * 0.45;
+  ctx.fillStyle = lit ? '#d0d0d0' : '#999';
+  ctx.strokeStyle = lit ? '#b8b8b8' : '#777';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(cx - capW / 2, ry - capH, capW, capH + 2, [3, 3, 0, 0]);
+  ctx.fill();
+  ctx.stroke();
+
+  // 闪电符号（替代 + 号）
+  const lightningSize = size * 0.15;
+  ctx.fillStyle = lit ? '#fffbe6' : '#ccc';
+  drawLightningBolt(ctx, cx, cy + capH * 0.5, lightningSize, lit);
+
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
+function drawLightningBolt(ctx, cx, cy, size, lit) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  const s = size;
+  ctx.beginPath();
+  ctx.moveTo(s * 0.15, -s);
+  ctx.lineTo(-s * 0.35, s * 0.05);
+  ctx.lineTo(s * 0.0, s * 0.05);
+  ctx.lineTo(-s * 0.15, s);
+  ctx.lineTo(s * 0.35, -s * 0.05);
+  ctx.lineTo(s * 0.0, -s * 0.05);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+// ======================== 交互 ========================
+
+function onCellClick(e) {
+  if (game.paused || game.won || game.animating) return;
+  const x = parseInt(e.currentTarget.dataset.x);
+  const y = parseInt(e.currentTarget.dataset.y);
+  rotateCell(x, y);
+}
+
+function onCellTouch(e) {
+  if (game.paused || game.won || game.animating) return;
+  e.preventDefault();
+  const x = parseInt(e.currentTarget.dataset.x);
+  const y = parseInt(e.currentTarget.dataset.y);
+  rotateCell(x, y);
+}
+
+function rotateCell(x, y) {
+  const cell = game.grid[y][x];
+  if (!cell || cell.type === T.BATTERY || cell.type === T.CROSS) return;
+
+  cell.rotation = (cell.rotation + 1) % 4;
+  playSound('rotate');
+
+  updateCircuitState();
+  updateAllCells();
+  updateBulbIndicator();
+}
+
+function updateAllCells() {
+  for (let y = 0; y < game.rows; y++) {
+    for (let x = 0; x < game.cols; x++) {
+      updateCellDisplay(x, y);
+    }
+  }
+}
+
+// ======================== 计时器 ========================
+
+function startTimer() {
+  stopTimer();
+  game.timer = 0;
+  updateTimerDisplay();
+  game.timerInterval = setInterval(() => {
+    if (!game.paused && !game.won) {
+      game.timer++;
+      updateTimerDisplay();
+    }
+  }, 1000);
+}
+
+function stopTimer() {
+  if (game.timerInterval) {
+    clearInterval(game.timerInterval);
+    game.timerInterval = null;
+  }
+}
+
+function updateTimerDisplay() {
+  const m = Math.floor(game.timer / 60).toString().padStart(2, '0');
+  const s = (game.timer % 60).toString().padStart(2, '0');
+  document.getElementById('timer-display').textContent = m + ':' + s;
+}
+
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+  const s = (seconds % 60).toString().padStart(2, '0');
+  return m + ':' + s;
+}
+
+// ======================== 最佳记录 ========================
+
+function getBestRecord(difficulty) {
+  try {
+    const val = localStorage.getItem('circuit_best_' + difficulty);
+    return val ? parseInt(val) : null;
+  } catch { return null; }
+}
+
+function setBestRecord(difficulty, seconds) {
+  try {
+    localStorage.setItem('circuit_best_' + difficulty, seconds);
+  } catch {}
+}
+
+function updateBestDisplay() {
+  const best = getBestRecord(game.difficulty);
+  document.getElementById('best-display').textContent = best ? formatTime(best) : '--:--';
+}
+
+// ======================== 灯泡指示器 ========================
+
+function updateBulbIndicator() {
+  const container = document.getElementById('bulb-indicator');
+  container.innerHTML =
+    '<span style="color:var(--glow-color);font-weight:bold">' + game.litBulbs + '</span>/' +
+    '<span>' + game.totalBulbs + '</span>';
+}
+
+// ======================== 游戏控制 ========================
+
+function startGame(difficulty) {
+  game.difficulty = difficulty;
+  const config = DIFFICULTY[difficulty];
+  game.cols = config.cols;
+  game.rows = config.rows;
+  game.won = false;
+  game.paused = false;
+
+  document.getElementById('difficulty-screen').style.display = 'none';
+  document.getElementById('game-screen').style.display = 'flex';
+
+  generateAndRender();
+  updateBestDisplay();
+  startTimer();
+}
+
+function generateAndRender() {
+  const { cols, rows } = game;
+  const result = generatePuzzle(cols, rows);
+  game.grid = result.grid;
+  game.solution = result.solution;
+  game.solving = false;
+  animatingCount = 0;
+  game.animating = false;
+
+  updateCircuitState();
+  calculateCellSize();
+  renderBoard();
+  updateBulbIndicator();
+}
+
+function resetPuzzle() {
+  if (game.won) return;
+  playSound('click');
+  game.won = false;
+  game.paused = false;
+  game.solving = false;
+  if (solveTimeout) { clearTimeout(solveTimeout); solveTimeout = null; }
+  document.getElementById('pause-overlay').style.display = 'none';
+  document.getElementById('btn-hint').style.opacity = '1';
+  generateAndRender();
+  game.timer = 0;
+  updateTimerDisplay();
+}
+
+function togglePause() {
+  if (game.won) return;
+  game.paused = !game.paused;
+  playSound('click');
+  const overlay = document.getElementById('pause-overlay');
+  overlay.style.display = game.paused ? 'flex' : 'none';
+  document.getElementById('btn-pause').textContent = game.paused ? '\u25B6' : '\u23F8';
+
+  // 暂停时停止自动还原
+  if (game.paused && game.solving) {
+    game.solving = false;
+    if (solveTimeout) { clearTimeout(solveTimeout); solveTimeout = null; }
+    document.getElementById('btn-hint').style.opacity = '1';
+  }
+}
+
+function toggleSound() {
+  game.soundOn = !game.soundOn;
+  const btn = document.getElementById('btn-sound');
+  btn.textContent = game.soundOn ? '\uD83D\uDD0A' : '\uD83D\uDD07';
+  btn.classList.toggle('active', game.soundOn);
+  if (game.soundOn) playSound('click');
+}
+
+function backToMenu() {
+  stopTimer();
+  game.paused = false;
+  game.won = false;
+  game.solving = false;
+  document.getElementById('pause-overlay').style.display = 'none';
+  document.getElementById('win-bar').style.display = 'none';
+  document.getElementById('win-return-bar').style.display = 'none';
+  document.getElementById('control-bar').style.display = 'flex';
+  document.getElementById('game-screen').style.display = 'none';
+  document.getElementById('difficulty-screen').style.display = 'flex';
+  document.getElementById('btn-pause').textContent = '\u23F8';
+  document.getElementById('btn-hint').style.opacity = '1';
+}
+
+// ======================== 提示/自动还原 ========================
+
+let solveTimeout = null;
+
+function startSolve() {
+  if (game.won || game.solving) return;
+  game.solving = true;
+  game.paused = true; // 暂停计时
+
+  // 禁用按钮防止重复点击
+  document.getElementById('btn-hint').style.opacity = '0.4';
+
+  // 收集所有需要还原的方块（非电池、非十字）
+  const targets = [];
+  for (let y = 0; y < game.rows; y++) {
+    for (let x = 0; x < game.cols; x++) {
+      const cell = game.grid[y][x];
+      if (!cell || cell.type === T.BATTERY || cell.type === T.CROSS) continue;
+      const solRot = game.solution[y][x];
+      if (cell.rotation !== solRot) {
+        targets.push({ x, y });
+      }
+    }
+  }
+
+  if (targets.length === 0) return;
+
+  // 打乱顺序，让还原看起来更自然
+  shuffle(targets);
+
+  let index = 0;
+  function solveNext() {
+    if (index >= targets.length || !game.solving) {
+      game.solving = false;
+      game.paused = false;
+      document.getElementById('btn-hint').style.opacity = '1';
+      return;
+    }
+
+    const { x, y } = targets[index];
+    const cell = game.grid[y][x];
+    const solRot = game.solution[y][x];
+
+    if (cell && cell.rotation !== solRot) {
+      cell.rotation = solRot;
+      playSound('rotate');
+      updateCircuitState();
+      updateAllCells();
+      updateBulbIndicator();
+
+      // 检查是否已经全部连通（玩家可能在还原过程中就赢了）
+      if (game.won) {
+        game.solving = false;
+        game.paused = false;
+        document.getElementById('btn-hint').style.opacity = '1';
+        return;
+      }
+    }
+
+    index++;
+    solveTimeout = setTimeout(solveNext, 350);
+  }
+
+  solveNext();
+}
+
+function onWin() {
+  stopTimer();
+  playSound('win');
+
+  game.solving = false;
+  if (solveTimeout) { clearTimeout(solveTimeout); solveTimeout = null; }
+  document.getElementById('btn-hint').style.opacity = '1';
+
+  const best = getBestRecord(game.difficulty);
+  const isNewRecord = !best || game.timer < best;
+  if (isNewRecord) {
+    setBestRecord(game.difficulty, game.timer);
+  }
+
+  setTimeout(() => {
+    document.getElementById('win-time').textContent = '用时：' + formatTime(game.timer);
+    document.getElementById('win-record').style.display = isNewRecord ? 'block' : 'none';
+    // Show inline win bar at top and return button at bottom
+    document.getElementById('win-bar').style.display = 'block';
+    document.getElementById('win-return-bar').style.display = 'block';
+    // Hide regular control buttons
+    document.getElementById('control-bar').style.display = 'none';
+  }, 300);
+}
+
+// ======================== 窗口大小变化 ========================
+
+let resizeTimeout = null;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(() => {
+    if (document.getElementById('game-screen').style.display !== 'none') {
+      calculateCellSize();
+      renderBoard();
+    }
+  }, 200);
+});
+
+document.addEventListener('dblclick', e => e.preventDefault());
+</script>
+</body>
+</html>

@@ -1,0 +1,371 @@
+:root {
+  --bg-dark: #1a0a1e;
+  --bg-panel: #1e0c24;
+  --bg-cell: #2a1f4e;
+  --bg-cell-hover: #3d2d6b;
+  --wire-off: #6a5a8a;
+  --wire-on: #b388ff;
+  --glow-color: #b388ff;
+  --bulb-off: #555;
+  --bulb-on: #b388ff;
+  --text-primary: #e0dce8;
+  --text-secondary: #9a8fad;
+  --accent: #ff6b9d;
+  --btn-bg: #2a1f4e;
+  --btn-hover: #3d2d6b;
+  --success: #7c4dff;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(160, 80, 240, 0.14) 0px,
+      rgba(160, 80, 240, 0.14) 2px,
+      transparent 2px,
+      transparent 28px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(160, 80, 240, 0.14) 0px,
+      rgba(160, 80, 240, 0.14) 2px,
+      transparent 2px,
+      transparent 28px
+    ),
+    radial-gradient(ellipse at 50% 40%, #2a0a2e 0%, var(--bg-dark) 70%);
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* ========== 难度选择界面 ========== */
+#difficulty-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 16px;
+}
+
+#difficulty-screen h1 {
+  font-size: 2em;
+  color: var(--glow-color);
+  text-shadow: 0 0 20px rgba(245, 197, 66, 0.5);
+  margin-bottom: 10px;
+}
+
+#difficulty-screen .subtitle {
+  color: var(--text-secondary);
+  font-size: 1em;
+  margin-bottom: 16px;
+}
+
+.difficulty-btn {
+  width: 280px;
+  padding: 18px 28px;
+  font-size: 1.2em;
+  font-weight: bold;
+  border: 2px solid var(--wire-off);
+  border-radius: 14px;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.difficulty-btn:hover, .difficulty-btn:active {
+  border-color: var(--glow-color);
+  background: var(--bg-cell);
+  transform: scale(1.03);
+}
+
+.difficulty-btn .grid-info {
+  font-size: 0.75em;
+  color: var(--text-secondary);
+  font-weight: normal;
+}
+
+/* ========== 游戏界面 ========== */
+#game-screen {
+  display: none;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* 顶部信息栏 */
+#top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  background: var(--bg-panel);
+  min-height: 56px;
+  flex-shrink: 0;
+}
+
+#top-bar .top-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex: 1;
+}
+
+#top-bar .top-right {
+  flex: 1;
+}
+
+#top-bar .info-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.05em;
+}
+
+#top-bar .info-item .icon {
+  font-size: 1.3em;
+}
+
+#top-bar .timer {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.25em;
+  font-weight: bold;
+}
+
+#top-bar .best-record {
+  color: var(--glow-color);
+  font-size: 0.95em;
+}
+
+/* 按钮栏 */
+#control-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: var(--bg-panel);
+  border-top: 1px solid rgba(255,255,255,0.05);
+  flex-shrink: 0;
+}
+
+.ctrl-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  border: 2px solid var(--wire-off);
+  background: var(--bg-cell);
+  color: var(--text-primary);
+  font-size: 1.4em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.ctrl-btn:hover, .ctrl-btn:active {
+  background: var(--btn-hover);
+  border-color: var(--glow-color);
+}
+
+.ctrl-btn.active {
+  border-color: var(--glow-color);
+  color: var(--glow-color);
+}
+
+/* 游戏板容器 */
+#board-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 8px;
+  position: relative;
+  background:
+    radial-gradient(circle 1.5px at 12px 12px, rgba(160, 80, 220, 0.06) 0%, transparent 100%),
+    radial-gradient(circle 1px at 36px 36px, rgba(255, 100, 160, 0.04) 0%, transparent 100%);
+  background-size: 48px 48px;
+  animation: bgPulse 8s ease-in-out infinite;
+}
+
+@keyframes bgPulse {
+  0%, 100% { background-position: 0 0, 0 0; filter: brightness(1); }
+  25% { background-position: 2px 1px, -1px 2px; filter: brightness(1.03); }
+  50% { background-position: 0 2px, 2px 0; filter: brightness(0.97); }
+  75% { background-position: -1px 0, 1px -1px; filter: brightness(1.02); }
+}
+
+#board {
+  position: relative;
+  /* board dimensions set by JS */
+}
+
+/* 六边形单元格 */
+.hex-cell {
+  position: absolute;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: filter 0.1s;
+}
+
+.hex-cell:hover {
+  filter: brightness(1.2);
+}
+
+.hex-cell canvas {
+  width: 100%;
+  height: 100%;
+  transition: transform 80ms ease-out;
+}
+
+.hex-cell.lit canvas {
+  filter: drop-shadow(0 0 4px rgba(179, 136, 255, 0.6));
+}
+
+/* 灯泡闪烁动画（电流到达触发） */
+@keyframes bulbFlicker {
+  0%   { opacity: 1; filter: drop-shadow(0 0 4px rgba(179, 136, 255, 0.6)); }
+  20%  { opacity: 0.3; filter: drop-shadow(0 0 2px rgba(179, 136, 255, 0.3)); }
+  40%  { opacity: 1; filter: drop-shadow(0 0 12px rgba(200, 160, 255, 0.9)); }
+  60%  { opacity: 0.5; filter: drop-shadow(0 0 6px rgba(179, 136, 255, 0.5)); }
+  80%  { opacity: 1; filter: drop-shadow(0 0 16px rgba(220, 180, 255, 1)); }
+  100% { opacity: 1; filter: drop-shadow(0 0 4px rgba(179, 136, 255, 0.6)); }
+}
+
+.hex-cell.flicker canvas {
+  animation: bulbFlicker 0.5s ease-in-out;
+}
+
+/* 胜利提示条 */
+#win-bar {
+  display: none;
+  background: rgba(245, 197, 66, 0.12);
+  border-bottom: 2px solid var(--glow-color);
+  padding: 10px 16px;
+  text-align: center;
+  flex-shrink: 0;
+  animation: winSlideIn 0.3s ease-out;
+}
+
+@keyframes winSlideIn {
+  from { transform: translateY(-100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+#win-bar h2 {
+  font-size: 1.3em;
+  color: var(--glow-color);
+  margin-bottom: 2px;
+}
+
+#win-bar .win-time {
+  font-size: 1em;
+  margin: 4px 0;
+}
+
+#win-bar .new-record {
+  color: var(--accent);
+  font-weight: bold;
+  font-size: 0.95em;
+}
+
+/* 胜利返回按钮 */
+#win-return-bar {
+  display: none;
+  padding: 12px 16px;
+  text-align: center;
+  flex-shrink: 0;
+  background: var(--bg-panel);
+}
+
+#btn-win-back {
+  width: auto;
+  padding: 12px 48px;
+  font-size: 1.1em;
+  font-weight: bold;
+  border: 2px solid var(--glow-color);
+  border-radius: 12px;
+  background: var(--glow-color);
+  color: #1a1a2e;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+#btn-win-back:hover {
+  transform: scale(1.05);
+}
+
+/* 暂停遮罩 */
+#pause-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.8);
+  z-index: 90;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 20px;
+}
+
+#pause-overlay h2 {
+  font-size: 2em;
+  color: var(--text-primary);
+}
+
+#pause-overlay button {
+  padding: 12px 32px;
+  font-size: 1em;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+#pause-overlay .resume-btn {
+  background: var(--glow-color);
+  color: #1a1a2e;
+}
+
+#pause-overlay .quit-btn {
+  background: var(--bg-cell);
+  color: var(--text-primary);
+  border: 1px solid var(--wire-off);
+}
+
+/* 灯泡指示器 */
+.bulb-indicator {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* 响应式 */
+@media (max-width: 480px) {
+  #difficulty-screen h1 { font-size: 1.7em; }
+  #difficulty-screen .subtitle { font-size: 1.05em; }
+  .difficulty-btn { width: 250px; padding: 14px 22px; font-size: 1.1em; }
+  .difficulty-btn .grid-info { font-size: 0.8em; }
+  #top-bar { padding: 8px 14px; min-height: 52px; }
+  #top-bar .info-item { font-size: 0.95em; gap: 6px; }
+  #top-bar .timer { font-size: 1.1em; }
+  #control-bar { gap: 12px; padding: 8px 12px; }
+  .ctrl-btn { width: 48px; height: 48px; font-size: 1.25em; border-radius: 10px; }
+}

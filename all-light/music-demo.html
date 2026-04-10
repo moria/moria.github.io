@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>BGM Demo - Electronic</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #1a0a1e;
+  color: #e0d0f0;
+  font-family: 'Segoe UI', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 24px;
+}
+h1 { font-size: 1.5em; color: #b388ff; }
+p { font-size: 0.9em; color: #9a8ab0; max-width: 520px; text-align: center; line-height: 1.6; }
+button {
+  padding: 14px 40px; font-size: 1.2em;
+  border: 2px solid #b388ff; background: rgba(120,60,200,0.2);
+  color: #e0d0f0; border-radius: 8px; cursor: pointer; transition: all 0.2s;
+}
+button:hover { background: rgba(120,60,200,0.4); }
+#status { font-size: 0.85em; color: #7a6a90; }
+</style>
+</head>
+<body>
+<h1>🎵 电子风格背景音乐 Demo</h1>
+<p>128 BPM · Cm调 · 合成鼓组 + 酸性Bass + 方波琶音 + 锯齿旋律 + Pad铺底<br>每8小节自动演进段落</p>
+<button id="playBtn" onclick="toggleMusic()">▶ 播放</button>
+<div id="status">点击播放试听</div>
+
+<script>
+/* ====== 全局状态 ====== */
+var actx = null, playing = false, master = null, tids = [];
+var bi = 0, si = 0, nextT = 0, bInS = 0;
+
+/* ====== 常量 ====== */
+var BPM = 128, BEAT = 60/128, STEP = 60/128/4, BAR = 60/128*4;
+
+/* ====== 音高表 (Hz) ====== */
+var N = {
+  C2:65.41, D2:73.42, Eb2:77.78, F2:87.31, G2:98, Ab2:103.83, Bb2:116.54,
+  C3:130.81, D3:146.83, Eb3:155.56, F3:174.61, G3:196, Ab3:207.65, Bb3:233.08,
+  C4:261.63, D4:293.66, Eb4:311.13, F4:349.23, G4:392, Ab4:415.30, Bb4:466.16,
+  C5:523.25, D5:587.33, Eb5:622.25, F5:698.46, G5:784, Ab5:830.61, Bb5:932.33,
+  C6:1046.5, Eb6:1244.5, G6:1568
+};
+
+/* ====== 鼓组 Pattern (16步 x 4轨) ====== */
+/* 每个pattern: [kick步, snare步, hh步, oh步] */
+var DRUMS = [
+  {k:[0,4,8,12],    s:[4,12],     h:[2,6,10,14],   o:[]},
+  {k:[0,3,8,11],    s:[4,12],     h:[2,6,10,14],   o:[7]},
+  {k:[0,4,6,8,12],  s:[4,12],     h:[1,3,5,9,11,13],o:[15]},
+  {k:[0,8],         s:[4,12],     h:[2,6,10,14],   o:[6,14]},
+  {k:[0,3,6,8,11],  s:[4,13],     h:[1,5,9],       o:[7,15]},
+  {k:[0,4,8,10,12], s:[4,12,14],  h:[2,6],         o:[15]},
+];
+
+/* ====== Bass Pattern (音符, 16步位) ====== */
+var BASS = [
+  [[N.C2,0,4],[N.C2,6,2],[N.Eb2,8,2],[N.F2,10,2],[N.G2,12,2]],
+  [[N.C2,0,2],[N.C2,4,2],[N.Eb2,6,2],[N.F2,8,4],[N.Eb2,14,2]],
+  [[N.Ab2,0,2],[N.G2,2,2],[N.F2,4,4],[N.Eb2,10,2],[N.F2,12,4]],
+  [[N.Bb2,0,2],[N.Ab2,4,2],[N.G2,6,2],[N.F2,8,2],[N.Eb2,10,2],[N.C2,12,4]],
+  [[N.C2,0,4],[N.Eb2,4,2],[N.F2,6,2],[N.G2,8,2],[N.Ab2,10,2],[N.G2,12,4]],
+  [[N.F2,0,4],[N.Eb2,4,2],[N.F2,6,2],[N.Ab2,8,4],[N.G2,12,2],[N.F2,14,2]],
+  [[N.Eb2,0,2],[N.F2,2,2],[N.G2,4,4],[N.C3,8,2],[N.Bb2,10,2],[N.Ab2,12,4]],
+  [[N.C2,0,2],[N.G2,2,2],[N.F2,4,2],[N.Eb2,6,2],[N.C2,8,4],[N.Eb2,12,2],[N.G2,14,2]],
+];
+
+/* ====== 琶音 (16个音/bar) ====== */
+var ARP = [
+  [N.C4,N.Eb4,N.G4,N.C5,N.G4,N.Eb4,N.C4,N.Eb4,N.G4,N.C5,N.Eb5,N.C5,N.G4,N.Eb4,N.C4,N.G4],
+  [N.C4,N.D4,N.Eb4,N.G4,N.C5,N.Eb5,N.D5,N.C5,N.G4,N.Eb4,N.G4,N.C5,N.D5,N.C5,N.G4,N.Eb4],
+  [N.F4,N.Ab4,N.C5,N.F5,N.C5,N.Ab4,N.F4,N.Ab4,N.C5,N.Eb5,N.F5,N.Eb5,N.C5,N.Ab4,N.F4,N.C5],
+  [N.Eb4,N.G4,N.Bb4,N.Eb5,N.G5,N.Eb5,N.Bb4,N.G4,N.Bb4,N.Eb5,N.G5,N.Eb5,N.Bb4,N.G4,N.Eb4,N.Bb4],
+  [N.Ab4,N.C5,N.Eb5,N.Ab5,N.Eb5,N.C5,N.Ab4,N.C5,N.Eb5,N.G5,N.Ab5,N.G5,N.Eb5,N.C5,N.Ab4,N.Eb5],
+  [N.Bb4,N.D5,N.F5,N.Bb5,N.F5,N.D5,N.Bb4,N.D5,N.F5,N.Bb5,N.D5,N.Bb4,N.F4,N.Bb4,N.D5,N.F5],
+  [N.C4,N.G4,N.C5,N.Eb5,N.G5,N.C6,N.G5,N.Eb5,N.C5,N.G4,N.Eb4,N.C4,N.G4,N.C5,N.Eb5,N.C5],
+  [N.Eb4,N.F4,N.G4,N.Bb4,N.C5,N.D5,N.Eb5,N.G5,N.Eb5,N.D5,N.C5,N.Bb4,N.G4,N.F4,N.Eb4,N.G4],
+];
+
+/* ====== 旋律 (0=rest) ====== */
+var LEAD = [
+  [0,0,N.G5,0,N.Eb5,0,N.C5,0,0,N.D5,0,N.Eb5,0,N.G5,N.F5,0],
+  [N.Eb5,0,0,N.C5,0,N.D5,0,N.Eb5,N.G5,0,N.F5,0,N.Eb5,0,N.C5,0],
+  [0,N.C5,0,N.Eb5,N.G5,0,N.Ab5,0,N.G5,0,N.F5,0,N.Eb5,N.D5,N.C5,0],
+  [N.G5,0,N.Ab5,0,N.G5,0,N.Eb5,0,N.D5,0,N.C5,0,N.D5,0,N.Eb5,0],
+  [0,0,N.C5,N.D5,N.Eb5,0,N.F5,0,N.G5,0,N.Ab5,0,N.G5,N.F5,N.Eb5,0],
+  [N.Bb5,0,N.G5,0,N.Eb5,0,N.C5,0,N.D5,0,N.F5,0,N.Eb5,0,N.G5,0],
+  [0,N.Eb5,N.F5,N.G5,0,0,N.Ab5,N.G5,N.F5,0,0,N.Eb5,N.D5,N.C5,0,0],
+  [N.C5,0,N.Eb5,0,N.G5,N.Bb5,N.G5,0,N.Eb5,0,N.C5,N.D5,N.Eb5,N.F5,N.G5,0],
+];
+
+/* ====== Pad和弦 ====== */
+var PADS = [
+  [N.C4,N.Eb4,N.G4],
+  [N.F3,N.Ab3,N.C4],
+  [N.Ab3,N.C4,N.Eb4],
+  [N.Bb3,N.D4,N.F4],
+  [N.Eb3,N.G3,N.Bb3],
+  [N.G3,N.Bb3,N.D4],
+];
+
+/* ====== 音色引擎 ====== */
+function mkKick(t) {
+  var o = actx.createOscillator(), g = actx.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(160, t);
+  o.frequency.exponentialRampToValueAtTime(28, t + 0.15);
+  g.gain.setValueAtTime(0.75, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+  o.connect(g).connect(master); o.start(t); o.stop(t + 0.35);
+  // transient click
+  var c = actx.createOscillator(), cg = actx.createGain();
+  c.type = 'square';
+  c.frequency.setValueAtTime(1000, t);
+  c.frequency.exponentialRampToValueAtTime(60, t + 0.015);
+  cg.gain.setValueAtTime(0.25, t);
+  cg.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+  c.connect(cg).connect(master); c.start(t); c.stop(t + 0.04);
+}
+
+function mkSnare(t) {
+  var len = actx.sampleRate * 0.12;
+  var buf = actx.createBuffer(1, len, actx.sampleRate);
+  var d = buf.getChannelData(0);
+  for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  var ns = actx.createBufferSource(); ns.buffer = buf;
+  var hpf = actx.createBiquadFilter(); hpf.type = 'highpass'; hpf.frequency.value = 3500;
+  var ng = actx.createGain();
+  ng.gain.setValueAtTime(0.38, t);
+  ng.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+  ns.connect(hpf).connect(ng).connect(master); ns.start(t); ns.stop(t + 0.12);
+  var o = actx.createOscillator(), og = actx.createGain();
+  o.type = 'triangle';
+  o.frequency.setValueAtTime(220, t);
+  o.frequency.exponentialRampToValueAtTime(70, t + 0.06);
+  og.gain.setValueAtTime(0.35, t);
+  og.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+  o.connect(og).connect(master); o.start(t); o.stop(t + 0.09);
+}
+
+function mkHH(t, open) {
+  var dur = open ? 0.14 : 0.04;
+  var len = actx.sampleRate * dur;
+  var buf = actx.createBuffer(1, len, actx.sampleRate);
+  var d = buf.getChannelData(0);
+  for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  var ns = actx.createBufferSource(); ns.buffer = buf;
+  var bp = actx.createBiquadFilter(); bp.type = 'bandpass';
+  bp.frequency.value = open ? 7500 : 10000; bp.Q.value = 1.5;
+  var g = actx.createGain();
+  g.gain.setValueAtTime(open ? 0.14 : 0.09, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  ns.connect(bp).connect(g).connect(master); ns.start(t); ns.stop(t + dur + 0.01);
+}
+
+function mkSynth(freq, t, dur, wave, vol, cutoff) {
+  var o1 = actx.createOscillator(), o2 = actx.createOscillator();
+  var flt = actx.createBiquadFilter(), g = actx.createGain();
+  o1.type = wave; o1.frequency.setValueAtTime(freq, t);
+  o2.type = wave; o2.frequency.setValueAtTime(freq * 1.006, t); o2.detune.setValueAtTime(8, t);
+  flt.type = 'lowpass'; flt.Q.value = 5;
+  flt.frequency.setValueAtTime(cutoff, t);
+  flt.frequency.exponentialRampToValueAtTime(Math.max(cutoff * 0.25, 150), t + dur);
+  g.gain.setValueAtTime(vol, t);
+  g.gain.setValueAtTime(vol * 0.8, t + dur * 0.6);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o1.connect(flt); o2.connect(flt); flt.connect(g).connect(master);
+  o1.start(t); o1.stop(t + dur + 0.05);
+  o2.start(t); o2.stop(t + dur + 0.05);
+}
+
+function mkPad(freq, t, dur, vol) {
+  var o1 = actx.createOscillator(), o2 = actx.createOscillator();
+  var flt = actx.createBiquadFilter(), g = actx.createGain();
+  o1.type = 'sine'; o1.frequency.setValueAtTime(freq, t);
+  o2.type = 'triangle'; o2.frequency.setValueAtTime(freq * 2.005, t);
+  flt.type = 'lowpass'; flt.frequency.value = 1000;
+  g.gain.setValueAtTime(0.001, t);
+  g.gain.linearRampToValueAtTime(vol, t + dur * 0.25);
+  g.gain.setValueAtTime(vol * 0.9, t + dur * 0.65);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o1.connect(flt); o2.connect(flt); flt.connect(g).connect(master);
+  o1.start(t); o1.stop(t + dur + 0.1);
+  o2.start(t); o2.stop(t + dur + 0.1);
+}
+
+function mkSubBass(freq, t, dur) {
+  var o = actx.createOscillator(), g = actx.createGain();
+  o.type = 'sine'; o.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(0.18, t);
+  g.gain.setValueAtTime(0.16, t + dur * 0.5);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g).connect(master); o.start(t); o.stop(t + dur + 0.05);
+}
+
+/* ====== 调度一个小节 ====== */
+function doBar(t, barI, secI) {
+  /* -- 段落控制 -- */
+  var sec3 = secI % 3;  // 0=A段, 1=B段, 2=C段
+  var barMod = barI % 8; // 段内位置
+
+  /* -- 鼓组 -- */
+  var di;
+  if (sec3 === 0) di = barMod < 4 ? 0 : 1;
+  else if (sec3 === 1) di = barMod < 4 ? 2 : 3;
+  else di = barMod < 4 ? 4 : 5;
+  var dp = DRUMS[di];
+  for (var s = 0; s < 16; s++) {
+    var st = t + s * STEP;
+    if (dp.k.indexOf(s) >= 0) mkKick(st);
+    if (dp.s.indexOf(s) >= 0) mkSnare(st);
+    if (dp.h.indexOf(s) >= 0) mkHH(st, false);
+    if (dp.o.indexOf(s) >= 0) mkHH(st, true);
+  }
+
+  /* -- Bass -- */
+  var bp = BASS[(barI + secI * 3) % BASS.length];
+  for (var b = 0; b < bp.length; b++) {
+    var note = bp[b][0], start = bp[b][1], len = bp[b][2];
+    mkSynth(note, t + start * STEP, len * STEP * 0.85, 'sawtooth', 0.13, 700);
+    mkSubBass(note, t + start * STEP, len * STEP * 0.9);
+  }
+
+  /* -- 琶音 -- */
+  var aIdx = (barI + secI * 2) % ARP.length;
+  var arp = ARP[aIdx];
+  var arpVol = sec3 === 1 ? 0.035 : 0.05;
+  var arpOct = sec3 === 2 ? 2 : 1;
+  for (var s = 0; s < 16; s++) {
+    mkSynth(arp[s] * arpOct, t + s * STEP, STEP * 0.65, 'square', arpVol, 2800);
+  }
+
+  /* -- 旋律 (B/C段才出现) -- */
+  if (sec3 >= 1) {
+    var li = (barI + secI) % LEAD.length;
+    var lp = LEAD[li];
+    var lVol = sec3 === 2 ? 0.07 : 0.05;
+    for (var s = 0; s < 16; s++) {
+      if (lp[s] > 0) {
+        mkSynth(lp[s], t + s * STEP, STEP * 1.4, 'sawtooth', lVol, 2200);
+      }
+    }
+  }
+
+  /* -- Pad -- */
+  var pi = (barI + secI) % PADS.length;
+  var chord = PADS[pi];
+  var padVol = sec3 === 0 ? 0.05 : 0.035;
+  for (var c = 0; c < chord.length; c++) {
+    mkPad(chord[c], t, BAR * 0.92, padVol);
+  }
+
+  /* -- 过门 (每段最后1小节加花) -- */
+  if (barMod === 7) {
+    mkSnare(t + 12 * STEP);
+    mkSnare(t + 13 * STEP);
+    mkSnare(t + 14 * STEP);
+    mkSnare(t + 15 * STEP);
+    mkHH(t + 14 * STEP, true);
+    mkHH(t + 15 * STEP, true);
+  }
+}
+
+/* ====== 调度循环 ====== */
+function schedLoop() {
+  if (!playing) return;
+  while (nextT < actx.currentTime + 4) {
+    if (bInS >= 8) { si++; bInS = 0; }
+    doBar(nextT, bi, si);
+    nextT += BAR;
+    bi++;
+    bInS++;
+  }
+  tids.push(setTimeout(schedLoop, 200));
+}
+
+/* ====== 播放/停止 ====== */
+async function toggleMusic() {
+  var btn = document.getElementById('playBtn');
+  var st = document.getElementById('status');
+  if (playing) {
+    playing = false;
+    for (var i = 0; i < tids.length; i++) clearTimeout(tids[i]);
+    tids = [];
+    if (actx) actx.close();
+    actx = null;
+    btn.textContent = '▶ 播放';
+    st.textContent = '已停止';
+    return;
+  }
+
+  actx = new (window.AudioContext || window.webkitAudioContext)();
+  if (actx.state === 'suspended') await actx.resume();
+
+  master = actx.createGain();
+  master.gain.value = 0.55;
+
+  // 混响
+  var cv = actx.createConvolver();
+  var rLen = actx.sampleRate * 1.8;
+  var rBuf = actx.createBuffer(2, rLen, actx.sampleRate);
+  for (var ch = 0; ch < 2; ch++) {
+    var d = rBuf.getChannelData(ch);
+    for (var i = 0; i < rLen; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / rLen, 2.8);
+  }
+  cv.buffer = rBuf;
+  var rGain = actx.createGain(); rGain.gain.value = 0.12;
+
+  // 压缩
+  var comp = actx.createDynamicsCompressor();
+  comp.threshold.value = -20; comp.ratio.value = 5; comp.attack.value = 0.003; comp.release.value = 0.15;
+
+  master.connect(comp);
+  master.connect(cv);
+  cv.connect(rGain);
+  rGain.connect(comp);
+  comp.connect(actx.destination);
+
+  playing = true;
+  bi = 0; si = 0; bInS = 0;
+  nextT = actx.currentTime + 0.05;
+  btn.textContent = '⏹ 停止';
+  st.textContent = '🎵 正在播放 · 128 BPM · Cm · A→B→C 段落循环';
+  schedLoop();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>点亮灯泡</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ========== 游戏界面 ========== -->
+<div id="game-screen">
+  <div id="top-bar">
+    <div class="top-left">
+      <div class="info-item">
+        <span class="icon">⏱</span>
+        <span class="timer" id="timer-display">00:00</span>
+      </div>
+      <div class="info-item">
+        <span class="icon">🏆</span>
+        <span class="best-record" id="best-display">--:--</span>
+      </div>
+    </div>
+    <div class="info-item bulb-indicator" id="bulb-indicator"></div>
+    <div class="top-right"></div>
+  </div>
+
+  <!-- 胜利提示 - 页面顶部，不遮挡网格 -->
+  <div id="win-bar">
+    <h2>恭喜通关！</h2>
+    <p class="win-time" id="win-time">用时：00:00</p>
+    <p class="new-record" id="win-record" style="display:none">新纪录！</p>
+  </div>
+
+  <div id="board-container">
+    <div id="board"></div>
+  </div>
+
+  <div id="control-bar">
+    <button class="ctrl-btn" id="btn-pause" onclick="togglePause()" title="暂停">⏸</button>
+    <button class="ctrl-btn" id="btn-hint" onclick="startSolve()" title="提示">💡</button>
+    <button class="ctrl-btn" id="btn-reset" onclick="resetPuzzle()" title="重置">↺</button>
+    <button class="ctrl-btn" id="btn-back" onclick="backToMenu()" title="返回">✕</button>
+  </div>
+
+  <!-- 胜利后显示在底部的返回按钮 -->
+  <div id="win-return-bar">
+    <button id="btn-win-back" onclick="backToMenu()">返回菜单</button>
+  </div>
+</div>
+
+<!-- ========== 暂停遮罩 ========== -->
+<div id="pause-overlay">
+  <h2>已暂停</h2>
+  <button class="resume-btn" onclick="togglePause()">继续游戏</button>
+  <button class="quit-btn" onclick="backToMenu()">返回菜单</button>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>

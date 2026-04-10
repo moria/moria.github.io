@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>点亮灯泡</title>
+<link rel="stylesheet" href="src/square/styles.css">
+<style>
+/* 模式切换容器：固定尺寸，避免切换时外部布局跳动 */
+#mode-container {
+  position: relative;
+  width: 280px;
+  /* 3个按钮(~62px) + 1个切换按钮(~44px) + gap(16px*3) + switchBtn margin(8px) */
+  height: 280px;
+}
+
+/* 模式切换动画 */
+.mode-group {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.mode-group.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(60px);
+}
+.mode-group.slide-out-left {
+  opacity: 0;
+  transform: translateX(-60px);
+  pointer-events: none;
+}
+
+/* 模式切换按钮 */
+.mode-switch-btn {
+  margin-top: 8px;
+  padding: 10px 24px;
+  font-size: 0.95em;
+  font-weight: 500;
+  border: 1.5px dashed var(--text-secondary);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.25s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: 0.5px;
+}
+.mode-switch-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(233, 69, 96, 0.08);
+  transform: scale(1.04);
+}
+.mode-switch-btn .switch-icon {
+  font-size: 1.2em;
+}
+
+/* 地狱模式难度按钮特殊样式 */
+.difficulty-btn.hell {
+  border-color: var(--accent);
+  background: linear-gradient(135deg, #1a0a1e 0%, #2a1030 100%);
+}
+.difficulty-btn.hell:hover, .difficulty-btn.hell:active {
+  border-color: #ff6b8a;
+  background: linear-gradient(135deg, #2a1030 0%, #3a1545 100%);
+  box-shadow: 0 0 16px rgba(233, 69, 96, 0.25);
+}
+</style>
+</head>
+<body>
+
+<!-- ========== 难度选择界面 ========== -->
+<div id="difficulty-screen">
+  <h1>点亮灯泡</h1>
+  <p class="subtitle">旋转方块，连接所有灯泡到电源</p>
+
+  <!-- 模式切换容器（固定尺寸） -->
+  <div id="mode-container">
+    <!-- 普通模式 -->
+    <div id="normal-group" class="mode-group">
+    <button class="difficulty-btn" onclick="loadGame('src/square/index.html?d=beginner')">
+      <span>💡 入门</span>
+      <span class="grid-info">3 × 5</span>
+    </button>
+    <button class="difficulty-btn" onclick="loadGame('src/square/index.html?d=easy')">
+      <span>💡 简单</span>
+      <span class="grid-info">5 × 8</span>
+    </button>
+    <button class="difficulty-btn" onclick="loadGame('src/square/index.html?d=hard')">
+      <span>💡 困难</span>
+      <span class="grid-info">9 × 14</span>
+    </button>
+    <button class="mode-switch-btn" onclick="switchMode('hell')">
+      <span class="switch-icon">👹</span>
+      <span>地狱模式</span>
+    </button>
+    </div>
+
+    <!-- 地狱模式 -->
+    <div id="hell-group" class="mode-group hidden">
+    <button class="difficulty-btn hell" onclick="loadGame('src/hex/index.html?d=hell1')">
+      <span>🔥 地狱1</span>
+      <span class="grid-info">1/2 × 7 六边形</span>
+    </button>
+    <button class="difficulty-btn hell" onclick="loadGame('src/hex/index.html?d=hell2')">
+      <span>🔥 地狱2</span>
+      <span class="grid-info">3/4 × 17 六边形</span>
+    </button>
+    <button class="difficulty-btn hell" onclick="loadGame('src/hex/index.html?d=hell3')">
+      <span>🔥 地狱3</span>
+      <span class="grid-info">5/6 × 25 六边形</span>
+    </button>
+    <button class="mode-switch-btn" onclick="switchMode('normal')">
+      <span class="switch-icon">💡</span>
+      <span>普通模式</span>
+    </button>
+    </div>
+  </div> <!-- /mode-container -->
+
+  <button id="btn-music-global" onclick="toggleBGM()" style="margin-top:12px;background:none;border:none;font-size:2em;cursor:pointer;display:none;" title="背景音乐">🎵</button>
+</div>
+
+<!-- ========== 游戏 iframe ========== -->
+<iframe id="game-frame" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;border:none;z-index:100;" allowtransparency="true"></iframe>
+
+<!-- 全局音乐开关（始终显示在右上角） -->
+<button id="btn-music-float" onclick="toggleBGM()" style="position:fixed;top:10px;right:10px;z-index:9999;background:rgba(0,0,0,0.35);border:none;font-size:1.4em;cursor:pointer;border-radius:50%;width:38px;height:38px;line-height:38px;text-align:center;" title="音乐/音效">🎵</button>
+
+<script src="src/common/bgm.js"></script>
+<script>
+let currentMode = 'normal';
+
+function switchMode(target) {
+  if (currentMode === target) return;
+  const normalG = document.getElementById('normal-group');
+  const hellG = document.getElementById('hell-group');
+  const outGroup = target === 'hell' ? normalG : hellG;
+  const inGroup  = target === 'hell' ? hellG : normalG;
+
+  // 淡出当前组
+  outGroup.classList.add('slide-out-left');
+
+  // 淡出结束后切换
+  setTimeout(() => {
+    outGroup.classList.add('hidden');
+    outGroup.classList.remove('slide-out-left');
+
+    // 新组从 hidden(右侧) → 正常位置
+    inGroup.classList.remove('hidden');
+  }, 380);
+
+  currentMode = target;
+}
+
+function loadGame(url) {
+  document.getElementById('difficulty-screen').style.display = 'none';
+  const frame = document.getElementById('game-frame');
+  frame.src = url;
+  frame.style.display = 'block';
+}
+
+function backToMenu() {
+  const frame = document.getElementById('game-frame');
+  frame.style.display = 'none';
+  frame.src = '';
+  document.getElementById('difficulty-screen').style.display = 'flex';
+}
+
+// 监听 iframe 子页面的 postMessage
+window.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'backToMenu') {
+    backToMenu();
+  }
+});
+
+// 同步更新音乐按钮状态，并通知 iframe 内游戏页面同步音效开关
+const _origUpdateBtn = updateMusicBtn;
+updateMusicBtn = function() {
+  _origUpdateBtn();
+  const floatBtn = document.getElementById('btn-music-float');
+  if (floatBtn) {
+    floatBtn.textContent = BGM.playing ? '\uD83C\uDFB5' : '\uD83C\uDFB6';
+    floatBtn.style.opacity = BGM.playing ? '1' : '0.4';
+  }
+  // 同步音效开关到 iframe 内游戏
+  const frame = document.getElementById('game-frame');
+  if (frame && frame.contentWindow) {
+    frame.contentWindow.postMessage({ type: 'syncSound', on: BGM.playing }, '*');
+  }
+};
+</script>
+</body>
+</html>
